@@ -1,38 +1,88 @@
 # threshtuner
 
-## An R package for interactive threshold tuning of raster data
+## Interactive threshold tuning for raster data
 
-`threshtuner` provides Shiny-based tools for interactively tuning threshold masks for `terra::SpatRaster` objects. It is designed for remote sensing workflows where thresholds are often used to identify or mask surfaces such as ice, snow, water, vegetation, clouds, shadows, or statistical outliers.
+`threshtuner` provides Shiny-based tools for interactively tuning threshold masks for `terra::SpatRaster` objects. It is intended for remote sensing workflows where threshold-based masks are used for ice, snow, water, vegetation, clouds, shadows, brightness anomalies, or index-based filtering.
 
-Thresholds are often predefined in scripts or literature, but optimal values can vary strongly depending on the sensor, geographic region, season, preprocessing level, and reflectance scaling. `threshtuner` helps users visually explore threshold behavior before applying masks in a reproducible workflow.
+Thresholds are often predefined in scripts or adopted from literature, but optimal values vary with sensor, region, season, preprocessing level, illumination, and reflectance scaling. `threshtuner` helps inspect threshold behavior visually before applying masks in a reproducible workflow.
 
 Instead of guessing a threshold and repeatedly plotting the result manually, `threshtuner` lets you:
 
-1. inspect the value distribution in a histogram,
+1. inspect value distributions in histograms,
 2. adjust thresholds interactively,
-3. preview the resulting mask on top of an RGB image,
-4. return the selected threshold parameters for reproducible use.
+3. preview masks as RGB overlays,
+4. return selected threshold parameters for reproducible masking.
 
 ---
-<img width="1154" height="617" alt="image" src="https://github.com/user-attachments/assets/59456365-a589-4234-9fa0-f462648b651e" />
 
-## Concept
+## Overview of tuning functions
 
-```text
-Raster data
-   │
-   ├── Select bands or indices
-   │
-   ├── Tune thresholds interactively
-   │      ├── band thresholds
-   │      ├── range thresholds
-   │      ├── standard deviation thresholds
-   │      └── percentile thresholds
-   │
-   ├── Inspect histogram + RGB mask overlay
-   │
-   └── Return selected parameters for reproducible masking
+| Function | What it tunes | Example applications |
+|---|---|---|
+| `tune_band_thresholds()` | One threshold per band or index, using `>`, `<`, `>=`, or `<=` | Brightness masks, ice/snow/cloud screening, shadow masks, simple index masks such as `NDVI > 0.3` |
+| `tune_range_thresholds()` | Lower and upper limits for one or more bands or indices | NDVI/NDWI/NDSI value ranges, valid reflectance intervals, class-specific index ranges |
+| `tune_sd_thresholds()` | Statistical thresholds based on `mean ± k × sd` | Brightness anomalies, dark outliers, spectral outlier filtering, index anomaly masks |
+| `tune_percentile_thresholds()` | Scene-adaptive percentile thresholds | Upper-percentile brightness masks, low-index masks, robust outlier screening, adaptive cloud/ice filtering |
+
+---
+
+## Use case example: brightness-based ice masking
+
+`tune_band_thresholds()` can be used to test brightness thresholds across visible bands. In the example below, pixels are masked where the selected RGB-band thresholds are met. This is useful for visually tuning masks for bright ice, snow, clouds, or other high-reflectance surfaces.
+
+The yellow overlay shows the currently masked pixels. Overlay color and transparency can be adjusted directly in the app, making it easier to inspect mask behavior against the underlying RGB image. Operators such as `>`, `>=`, `<`, and `<=` can also be changed interactively for each band.
+
+<img width="1154" height="617" alt="Brightness threshold tuning app showing an RGB image with a transparent mask overlay" src="https://github.com/user-attachments/assets/59456365-a589-4234-9fa0-f462648b651e" />
+
+```r
+brightness_mask <- tune_band_thresholds(
+  x,
+  bands = c("B02", "B03", "B04"),
+  thresholds = c(B02 = 9000, B03 = 9000, B04 = 9000),
+  operators = ">",
+  combine = "and",
+  display_mode = "rgb_overlay",
+  rgb_bands = c("B02", "B03", "B04"),
+  overlay_col = "#fffb01",
+  alpha = 0.45
+)
 ```
+
+After clicking **Use thresholds**, the selected settings are returned to R and can be applied reproducibly:
+
+```r
+mask <- mask_band_thresholds(
+  x,
+  bands = c("B02", "B03", "B04"),
+  thresholds = brightness_mask$thresholds,
+  operators = brightness_mask$operators,
+  combine = brightness_mask$combine
+)
+```
+
+The mask can then be inspected again or used in downstream processing:
+
+```r
+plot_rgb_mask_fill(
+  x,
+  mask,
+  bands = c("B02", "B03", "B04"),
+  overlay_col = "#fffb01",
+  alpha = 0.45
+)
+```
+
+### App controls used in this example
+
+| Control | Purpose |
+|---|---|
+| Threshold sliders | Adjust thresholds for each selected band |
+| Exact value boxes | Enter precise threshold values |
+| Operator selectors | Choose `>`, `>=`, `<`, or `<=` for each band |
+| Combine masks | Combine band conditions with `and` or `or` |
+| Overlay color | Set the mask overlay color |
+| Overlay alpha | Set mask transparency |
+| Use thresholds | Return selected settings to R |
 
 ---
 
