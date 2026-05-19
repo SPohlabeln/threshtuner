@@ -1,13 +1,18 @@
 Package: threshtuner
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Interactive Threshold Tuning for Raster Data
+Version: 0.1.0
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Sina", "Pohlabeln", email = "sina.pohlabeln@gmail.com", role = c("aut", "cre"))
+Description: Provides Shiny-based tools for interactively tuning thresholds for terra raster data.
+    Includes utilities for spectral index calculation, standard deviation and percentile thresholding, mask generation,
+    histogram inspection, and RGB mask overlays.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
-URL: https://github.com/SPohlabeln/threshtuner
-BugReports: https://github.com/SPohlabeln/threshtuner/issues
+Imports:
+    terra,
+    shiny,
+    ggplot2,
+    bslib,
+    colourpicker

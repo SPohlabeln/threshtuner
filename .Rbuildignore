@@ -1,2 +1,23 @@
 ^threshtuner\.Rproj$
 ^\.Rproj\.user$
+^LICENSE\.md$
+
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.git$
+^\.gitignore$
+^README\.Rmd$
+^data-raw$
+^outputs$
+^output$
+^tmp$
+^cache$
+^.*\.tif$
+^.*\.tiff$
+^.*\.vrt$
+^.*\.nc$
+^.*\.jp2$
+^.*\.SAFE$
+
+# own
+^dev$

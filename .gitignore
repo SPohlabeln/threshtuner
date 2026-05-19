@@ -4,3 +4,41 @@
 .httr-oauth
 .DS_Store
 .quarto
+.vscode
+
+# Large raster files
+*.tif
+*.tiff
+*.vrt
+*.nc
+*.grd
+*.gri
+*.img
+*.jp2
+*.SAFE/
+
+# R session files
+.Rhistory
+.RData
+.Ruserdata
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+
+# Data/cache/output files
+data-raw/
+outputs/
+output/
+tmp/
+cache/
+
+# Build outputs
+*.tar.gz
+*.Rcheck/
+.Rbuildignore~
+dev/
