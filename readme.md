@@ -14,6 +14,7 @@ Instead of guessing a threshold and repeatedly plotting the result manually, `th
 4. return the selected threshold parameters for reproducible use.
 
 ---
+<img width="1154" height="617" alt="image" src="https://github.com/user-attachments/assets/59456365-a589-4234-9fa0-f462648b651e" />
 
 ## Concept
 
