@@ -58,6 +58,7 @@ library(terra)
 ## Add simple spectral indices
 
 For many thresholding workflows, it is useful to work not only with the original raster bands but also with simple spectral indices. `add_indices()` adds commonly used indices to a `terra::SpatRaster`, so they can be tuned in the same way as any other raster layer.
+For computing indices, bands must be named like S2 band naming: "B02", "B03", "B04", "B08", "B11", "B12"
 
 ```r
 x_idx <- add_indices(
@@ -65,13 +66,6 @@ x_idx <- add_indices(
   indices = c("NDVI", "NDWI", "MNDWI", "NDSI", "NBR")
 )
 ```
-
-| Index            | Common use                                              |
-| ---------------- | ------------------------------------------------------- |
-| `NDVI`           | vegetation signal and vegetation masking                |
-| `NDWI` / `MNDWI` | water-related thresholding                              |
-| `NDSI`           | snow and ice-related thresholding                       |
-| `NBR`            | burn severity, disturbance, or spectral change contexts |
 
 The added index layers can then be passed to the tuning functions through the `bands` argument.
 
@@ -82,6 +76,10 @@ The added index layers can then be passed to the tuning functions through the `b
 All tuning functions follow the same basic logic:
 
 ```r
+# Input example
+x <- c(B02, B03, B04, B08, B11, B12)
+names(x) <- c("B02", "B03", "B04", "B08", "B11", "B12")
+
 # 1. Tune thresholds interactively
 params <- tune_*()
 
@@ -97,8 +95,8 @@ The Shiny apps are used for visual inspection and parameter selection. The corre
 
 `tune_band_thresholds()` tunes one threshold per selected band or index. It is the most direct option for simple rules such as high brightness, low reflectance, or index thresholds.
 
-
 ```r
+# Version with commonly used arguments
 band_params <- tune_band_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
@@ -106,17 +104,41 @@ band_params <- tune_band_thresholds(
   operators = ">",
   combine = "and",
   display_mode = "rgb_overlay",
-  rgb_bands = c("B04", "B03", "B02"),
+  rgb_bands = c("B02", "B03", "B04"),
   overlay_col = "#fffb01",
   alpha = 0.45
 )
+```
 
-mask <- mask_band_thresholds(
+```r
+# Minimal version
+band_params <- tune_band_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
-  thresholds = band_params$thresholds,
-  operators = band_params$operators,
-  combine = band_params$combine
+  rgb_bands = c("B02", "B03", "B04")
+)
+```
+
+After clicking **Use thresholds**, apply the selected values reproducibly:
+
+```r
+mask <- mask_band_thresholds(
+  x,
+  bands = names(band_params),
+  thresholds = band_params,
+  operators = ">",
+  combine = "and"
+)
+```
+
+Lastly, to visualize the created mask:
+```r
+plot_rgb_mask_fill(
+  x,
+  mask,
+  bands = c("B02", "B03", "B04"),
+  alpha = 0.4,
+  overlay_col = "#ff0101"
 )
 ```
 
@@ -129,39 +151,40 @@ mask <- mask_band_thresholds(
 | `operators`            | Threshold operator: `>`, `>=`, `<`, or `<=`         |
 | `combine`              | Combine multiple layer masks with `"and"` or `"or"` |
 | `display_mode`         | Display mode, for example `"rgb_overlay"`           |
-| `rgb_bands`            | Bands used for the RGB background image             |
+| `rgb_bands`            | Bands used for the (RGB) background image             |
 | `overlay_col`, `alpha` | Overlay color and transparency for visual preview   |
 
 ---
 
 ## `tune_range_thresholds()`
+<img width="1165" height="457" alt="Screenshot 2026-05-20 012655" src="https://github.com/user-attachments/assets/a208b26b-c7af-4053-bee9-f022613b5a03" />
 
 `tune_range_thresholds()` tunes lower and upper limits for one or more bands or indices. It is useful when values should be selected inside or outside a defined range.
-
-<!-- Replace this placeholder with a screenshot of the range-threshold slider. -->
-
 
 ```r
 range_params <- tune_range_thresholds(
   x_idx,
   bands = "NDVI",
-  lower = c(NDVI = 0.2),
-  upper = c(NDVI = 0.8),
-  range_mode = "inside",
+  ranges = rbind(
+    NDVI = c(min = 0.2, max = 0.8)
+  ),
   combine = "and",
   display_mode = "rgb_overlay",
-  rgb_bands = c("B04", "B03", "B02"),
+  rgb_bands = c("B02", "B03", "B04"),
   overlay_col = "#00ff66",
   alpha = 0.4
 )
+```
 
+After clicking **Use ranges**, apply the selected range reproducibly:
+
+```r
 mask <- mask_range_thresholds(
   x_idx,
-  bands = "NDVI",
-  lower = range_params$lower,
-  upper = range_params$upper,
-  range_mode = range_params$range_mode,
-  combine = range_params$combine
+  bands = rownames(range_params),
+  ranges = range_params,
+  combine = "and",
+  keep_inside = TRUE
 )
 ```
 
@@ -170,18 +193,17 @@ mask <- mask_range_thresholds(
 | Argument                    | Description                                              |
 | --------------------------- | -------------------------------------------------------- |
 | `bands`                     | Raster layers or indices used for range thresholding     |
-| `lower`, `upper`            | Lower and upper threshold limits                         |
-| `range_mode`                | Mask values `"inside"` or `"outside"` the selected range |
+| `ranges`                    | Lower and upper threshold limits                         |
 | `combine`                   | Combine multiple layer masks with `"and"` or `"or"`      |
 | `display_mode`, `rgb_bands` | RGB overlay preview settings                             |
 | `overlay_col`, `alpha`      | Overlay color and transparency                           |
+| `keep_inside`               | TRUE/FALSE option to mask inside/outside range           |
 
 ---
 
 ## `tune_sd_thresholds()`
 
 `tune_sd_thresholds()` tunes statistical thresholds based on `mean ± k × sd`. This is useful when thresholds should adapt to the value distribution of the current raster rather than using fixed absolute values.
-
 
 ```r
 sd_params <- tune_sd_thresholds(
@@ -191,17 +213,21 @@ sd_params <- tune_sd_thresholds(
   side = "upper",
   combine = "and",
   display_mode = "rgb_overlay",
-  rgb_bands = c("B04", "B03", "B02"),
+  rgb_bands = c("B02", "B03", "B04"),
   overlay_col = "#ff9900",
   alpha = 0.45
 )
+```
 
+After clicking **Use SD thresholds**, apply the selected parameters reproducibly:
+
+```r
 mask <- mask_sd_thresholds(
   x,
-  bands = c("B02", "B03", "B04"),
-  k = sd_params$k,
-  side = sd_params$side,
-  combine = sd_params$combine
+  bands = rownames(sd_params),
+  params = sd_params,
+  side = "upper",
+  combine = "and"
 )
 ```
 
