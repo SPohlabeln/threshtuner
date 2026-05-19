@@ -34,57 +34,12 @@ The yellow overlay shows the currently masked pixels. Overlay color and transpar
 
 <img width="1154" height="617" alt="Brightness threshold tuning app showing an RGB image with a transparent mask overlay" src="https://github.com/user-attachments/assets/59456365-a589-4234-9fa0-f462648b651e" />
 
-```r
-brightness_mask <- tune_band_thresholds(
-  x,
-  bands = c("B02", "B03", "B04"),
-  thresholds = c(B02 = 9000, B03 = 9000, B04 = 9000),
-  operators = ">",
-  combine = "and",
-  display_mode = "rgb_overlay",
-  rgb_bands = c("B02", "B03", "B04"),
-  overlay_col = "#fffb01",
-  alpha = 0.45
-)
-```
 
 After clicking **Use thresholds**, the selected settings are returned to R and can be applied reproducibly:
 
-```r
-mask <- mask_band_thresholds(
-  x,
-  bands = c("B02", "B03", "B04"),
-  thresholds = brightness_mask$thresholds,
-  operators = brightness_mask$operators,
-  combine = brightness_mask$combine
-)
-```
-
-The mask can then be inspected again or used in downstream processing:
-
-```r
-plot_rgb_mask_fill(
-  x,
-  mask,
-  bands = c("B02", "B03", "B04"),
-  overlay_col = "#fffb01",
-  alpha = 0.45
-)
-```
-
-### App controls used in this example
-
-| Control | Purpose |
-|---|---|
-| Threshold sliders | Adjust thresholds for each selected band |
-| Exact value boxes | Enter precise threshold values |
-| Operator selectors | Choose `>`, `>=`, `<`, or `<=` for each band |
-| Combine masks | Combine band conditions with `and` or `or` |
-| Overlay color | Set the mask overlay color |
-| Overlay alpha | Set mask transparency |
-| Use thresholds | Return selected settings to R |
-
 ---
+
+# How to use threshtuner
 
 ## Installation
 
@@ -93,159 +48,140 @@ plot_rgb_mask_fill(
 remotes::install_github("SPohlabeln/threshtuner")
 ```
 
----
-
-## Setup
-
 ```r
-library(terra)
 library(threshtuner)
-
-# Example raster with Sentinel-2 style band names
-# x should be a terra::SpatRaster
-names(x)
-#> "B02" "B03" "B04" "B08" "B11" "B12"
-```
-
-Most examples below use an RGB preview:
-
-```r
-rgb_bands <- c("B02", "B03", "B04")
+library(terra)
 ```
 
 ---
 
-## Overview of tuning functions
+## Add simple spectral indices
 
-| Function | Purpose | Typical use case |
-|---|---|---|
-| `tune_band_thresholds()` | Tune one threshold per band or index | Brightness-based ice, snow, or cloud masks |
-| `tune_range_thresholds()` | Tune lower and upper limits | NDVI vegetation ranges or valid reflectance intervals |
-| `tune_sd_thresholds()` | Tune `mean ± k × sd` thresholds | Detect unusually bright or dark pixels |
-| `tune_percentile_thresholds()` | Tune percentile-based thresholds | Scene-adaptive outlier, cloud, or ice masks |
+For many thresholding workflows, it is useful to work not only with the original raster bands but also with simple spectral indices. `add_indices()` adds commonly used indices to a `terra::SpatRaster`, so they can be tuned in the same way as any other raster layer.
+
+```r
+x_idx <- add_indices(
+  x,
+  indices = c("NDVI", "NDWI", "MNDWI", "NDSI", "NBR")
+)
+```
+
+| Index            | Common use                                              |
+| ---------------- | ------------------------------------------------------- |
+| `NDVI`           | vegetation signal and vegetation masking                |
+| `NDWI` / `MNDWI` | water-related thresholding                              |
+| `NDSI`           | snow and ice-related thresholding                       |
+| `NBR`            | burn severity, disturbance, or spectral change contexts |
+
+The added index layers can then be passed to the tuning functions through the `bands` argument.
 
 ---
 
-## 1. Band threshold tuning
+## Main workflow
 
-Use `tune_band_thresholds()` when each selected band or index should be compared to one threshold.
-
-### Example: brightness-based ice mask
-
-Bright ice or snow surfaces often show high reflectance in visible bands. A simple first mask can be created by tuning thresholds for blue, green, and red reflectance.
+All tuning functions follow the same basic logic:
 
 ```r
-result <- tune_band_thresholds(
+# 1. Tune thresholds interactively
+params <- tune_*()
+
+# 2. Apply the selected parameters reproducibly
+mask <- mask_*()
+```
+
+The Shiny apps are used for visual inspection and parameter selection. The corresponding `mask_*()` functions apply the selected settings without reopening the interactive app.
+
+---
+
+## `tune_band_thresholds()`
+
+`tune_band_thresholds()` tunes one threshold per selected band or index. It is the most direct option for simple rules such as high brightness, low reflectance, or index thresholds.
+
+
+```r
+band_params <- tune_band_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
   thresholds = c(B02 = 9000, B03 = 9000, B04 = 9000),
   operators = ">",
   combine = "and",
   display_mode = "rgb_overlay",
-  rgb_bands = rgb_bands
+  rgb_bands = c("B04", "B03", "B02"),
+  overlay_col = "#fffb01",
+  alpha = 0.45
 )
-```
 
-Apply the selected thresholds:
-
-```r
 mask <- mask_band_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
-  thresholds = result$thresholds,
-  operators = result$operators,
-  combine = result$combine
+  thresholds = band_params$thresholds,
+  operators = band_params$operators,
+  combine = band_params$combine
 )
 ```
 
-### App options
+**Main arguments**
 
-| Option | Description |
-|---|---|
-| Threshold slider | Adjust the threshold interactively |
-| Exact value | Enter a precise threshold value |
-| Operator | Choose `>`, `>=`, `<`, or `<=` |
-| Combine masks | Use `and` or `or` for multiple bands |
-| Overlay alpha | Adjust mask transparency |
-| Overlay color | Choose the overlay color |
-| Use thresholds | Return selected parameters to R |
+| Argument               | Description                                         |
+| ---------------------- | --------------------------------------------------- |
+| `bands`                | Raster layers or indices used for thresholding      |
+| `thresholds`           | One threshold value per selected layer              |
+| `operators`            | Threshold operator: `>`, `>=`, `<`, or `<=`         |
+| `combine`              | Combine multiple layer masks with `"and"` or `"or"` |
+| `display_mode`         | Display mode, for example `"rgb_overlay"`           |
+| `rgb_bands`            | Bands used for the RGB background image             |
+| `overlay_col`, `alpha` | Overlay color and transparency for visual preview   |
 
 ---
 
-## 2. Range threshold tuning
+## `tune_range_thresholds()`
 
-Use `tune_range_thresholds()` when pixels should be selected based on a lower and upper limit.
+`tune_range_thresholds()` tunes lower and upper limits for one or more bands or indices. It is useful when values should be selected inside or outside a defined range.
 
-### Example: vegetation mask from NDVI
+<!-- Replace this placeholder with a screenshot of the range-threshold slider. -->
 
-First, add NDVI to the raster:
-
-```r
-x_idx <- add_indices(
-  x,
-  indices = "NDVI",
-  bands = list(
-    blue = "B02",
-    green = "B03",
-    red = "B04",
-    nir = "B08",
-    swir1 = "B11",
-    swir2 = "B12"
-  )
-)
-```
-
-Then tune an NDVI range:
 
 ```r
-ranges <- tune_range_thresholds(
+range_params <- tune_range_thresholds(
   x_idx,
   bands = "NDVI",
-  ranges = rbind(
-    NDVI = c(min = 0.2, max = 0.8)
-  ),
+  lower = c(NDVI = 0.2),
+  upper = c(NDVI = 0.8),
+  range_mode = "inside",
+  combine = "and",
   display_mode = "rgb_overlay",
-  rgb_bands = rgb_bands
+  rgb_bands = c("B04", "B03", "B02"),
+  overlay_col = "#00ff66",
+  alpha = 0.4
 )
-```
 
-Apply the selected range:
-
-```r
 mask <- mask_range_thresholds(
   x_idx,
   bands = "NDVI",
-  ranges = ranges
+  lower = range_params$lower,
+  upper = range_params$upper,
+  range_mode = range_params$range_mode,
+  combine = range_params$combine
 )
 ```
 
-### App options
+**Main arguments**
 
-| Option | Description |
-|---|---|
-| Range slider | Adjust lower and upper threshold |
-| Min / max fields | Enter precise range limits |
-| Mask values inside ranges | If checked, pixels inside the range are masked |
-| Combine masks | Use `and` or `or` for multiple bands |
-| Overlay alpha | Adjust mask transparency |
-| Overlay color | Choose the overlay color |
-| Use ranges | Return selected ranges to R |
+| Argument                    | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `bands`                     | Raster layers or indices used for range thresholding     |
+| `lower`, `upper`            | Lower and upper threshold limits                         |
+| `range_mode`                | Mask values `"inside"` or `"outside"` the selected range |
+| `combine`                   | Combine multiple layer masks with `"and"` or `"or"`      |
+| `display_mode`, `rgb_bands` | RGB overlay preview settings                             |
+| `overlay_col`, `alpha`      | Overlay color and transparency                           |
 
 ---
 
-## 3. Standard deviation threshold tuning
+## `tune_sd_thresholds()`
 
-Use `tune_sd_thresholds()` to create statistical masks based on:
+`tune_sd_thresholds()` tunes statistical thresholds based on `mean ± k × sd`. This is useful when thresholds should adapt to the value distribution of the current raster rather than using fixed absolute values.
 
-```text
-mean ± k × sd
-```
-
-This is useful for identifying unusually bright or dark pixels relative to the current scene.
-
-### Example: bright outlier mask
-
-Bright outliers in visible bands may indicate snow, ice, clouds, or other high-reflectance surfaces.
 
 ```r
 sd_params <- tune_sd_thresholds(
@@ -255,160 +191,86 @@ sd_params <- tune_sd_thresholds(
   side = "upper",
   combine = "and",
   display_mode = "rgb_overlay",
-  rgb_bands = rgb_bands
+  rgb_bands = c("B04", "B03", "B02"),
+  overlay_col = "#ff9900",
+  alpha = 0.45
 )
-```
 
-Apply the selected standard deviation thresholds:
-
-```r
 mask <- mask_sd_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
-  params = sd_params,
-  side = "upper",
-  combine = "and"
+  k = sd_params$k,
+  side = sd_params$side,
+  combine = sd_params$combine
 )
 ```
 
-### App options
+**Main arguments**
 
-| Option | Description |
-|---|---|
-| `k` slider | Adjust the standard deviation multiplier |
-| Exact `k` | Enter a precise multiplier |
-| Threshold side | Choose which part of the distribution is masked |
-| Combine masks | Use `and` or `or` for multiple bands |
-| Overlay alpha | Adjust mask transparency |
-| Overlay color | Choose the overlay color |
-| Use SD thresholds | Return selected parameters to R |
-
-### Threshold side options
-
-| Side | Masked pixels |
-|---|---|
-| `upper` | Values above `mean + k × sd` |
-| `lower` | Values below `mean - k × sd` |
-| `outside` | Values outside `mean ± k × sd` |
-| `inside` | Values inside `mean ± k × sd` |
+| Argument                    | Description                                                                  |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| `bands`                     | Raster layers or indices used for statistical thresholding                   |
+| `k`                         | Standard-deviation multiplier in `mean ± k × sd`                             |
+| `side`                      | Threshold side, for example `"upper"`, `"lower"`, `"inside"`, or `"outside"` |
+| `combine`                   | Combine multiple layer masks with `"and"` or `"or"`                          |
+| `display_mode`, `rgb_bands` | RGB overlay preview settings                                                 |
+| `overlay_col`, `alpha`      | Overlay color and transparency                                               |
 
 ---
 
-## 4. Percentile threshold tuning
+## `tune_percentile_thresholds()`
 
-Use `tune_percentile_thresholds()` for scene-adaptive thresholds based on image percentiles. This is often more robust than fixed thresholds because values are derived from the current raster distribution.
-
-### Example: upper-percentile brightness mask
+`tune_percentile_thresholds()` tunes thresholds based on percentiles of the selected raster layers. This is useful for scene-adaptive thresholds where absolute reflectance or index values vary between images.
 
 ```r
-p_params <- tune_percentile_thresholds(
+percentile_params <- tune_percentile_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
-  lower_p = 5,
-  upper_p = 95,
+  probs = c(B02 = 0.95, B03 = 0.95, B04 = 0.95),
   side = "upper",
   combine = "and",
   display_mode = "rgb_overlay",
-  rgb_bands = rgb_bands
+  rgb_bands = c("B04", "B03", "B02"),
+  overlay_col = "#ffff00",
+  alpha = 0.45
 )
-```
 
-Apply the selected percentile thresholds:
-
-```r
 mask <- mask_percentile_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
-  params = p_params,
-  side = "upper",
-  combine = "and"
+  probs = percentile_params$probs,
+  side = percentile_params$side,
+  combine = percentile_params$combine
 )
 ```
 
-### Example: low NDVI mask
+**Main arguments**
 
-```r
-p_params <- tune_percentile_thresholds(
-  x_idx,
-  bands = "NDVI",
-  lower_p = 10,
-  upper_p = 90,
-  side = "lower",
-  display_mode = "rgb_overlay",
-  rgb_bands = rgb_bands
-)
-```
-
-### App options
-
-| Option | Description |
-|---|---|
-| Percentile range | Adjust lower and upper percentiles |
-| Lower / upper percentile fields | Enter exact percentile values |
-| Threshold side | Choose which part of the distribution is masked |
-| Combine masks | Use `and` or `or` for multiple bands |
-| Overlay alpha | Adjust mask transparency |
-| Overlay color | Choose the overlay color |
-| Use percentile thresholds | Return selected parameters to R |
-
-### Threshold side options
-
-| Side | Masked pixels |
-|---|---|
-| `upper` | Values above the upper percentile |
-| `lower` | Values below the lower percentile |
-| `outside` | Values below lower or above upper percentile |
-| `inside` | Values between lower and upper percentile |
+| Argument                    | Description                                                                  |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| `bands`                     | Raster layers or indices used for percentile thresholding                    |
+| `probs`                     | Percentile probabilities, for example `0.05`, `0.5`, or `0.95`               |
+| `side`                      | Threshold side, for example `"upper"`, `"lower"`, `"inside"`, or `"outside"` |
+| `combine`                   | Combine multiple layer masks with `"and"` or `"or"`                          |
+| `display_mode`, `rgb_bands` | RGB overlay preview settings                                                 |
+| `overlay_col`, `alpha`      | Overlay color and transparency                                               |
 
 ---
 
-## RGB overlay preview
+## Plot an RGB mask overlay
 
-All tuning apps can display the mask as a transparent overlay on an RGB image:
-
-```r
-display_mode = "rgb_overlay"
-rgb_bands = c("B02", "B03", "B04")
-```
-
-This helps visually assess whether the selected threshold captures the intended surface.
-
----
-
-## Spectral indices
-
-`threshtuner` can add common spectral indices before tuning:
+`plot_rgb_mask_fill()` can be used to inspect a mask outside the Shiny apps or to create quick diagnostic figures.
 
 ```r
-x_idx <- add_indices(
+plot_rgb_mask_fill(
   x,
-  indices = c("NDVI", "NDWI", "NDSI", "NBR")
+  mask = mask,
+  rgb_bands = c("B04", "B03", "B02"),
+  mask_col = "#ffff00",
+  alpha = 0.45
 )
 ```
 
-| Index | Formula |
-|---|---|
-| NDVI | `(NIR - Red) / (NIR + Red)` |
-| NDWI | `(Green - NIR) / (Green + NIR)` |
-| MNDWI | `(Green - SWIR1) / (Green + SWIR1)` |
-| NDSI | `(Green - SWIR1) / (Green + SWIR1)` |
-| NBR | `(NIR - SWIR2) / (NIR + SWIR2)` |
-
 ---
 
-## Why use `threshtuner`?
-
-Threshold-based masks are simple, transparent, and easy to reproduce, but they are rarely universal. A threshold that works for one image may fail for another because of differences in:
-
-- sensor type,
-- reflectance scaling,
-- season,
-- illumination,
-- atmospheric correction,
-- land cover,
-- study region.
-
-`threshtuner` makes threshold selection more transparent by combining histograms, visual RGB overlays, and reproducible returned parameters.
-
----
 
