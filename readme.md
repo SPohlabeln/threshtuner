@@ -203,7 +203,7 @@ mask <- mask_range_thresholds(
 
 ## `tune_sd_thresholds()`
 
-`tune_sd_thresholds()` tunes statistical thresholds based on `mean ± k × sd`. This is useful when thresholds should adapt to the value distribution of the current raster rather than using fixed absolute values.
+`tune_sd_thresholds()` tunes standard deviation thresholds based on `mean ± k × sd`. This is useful when thresholds should adapt to the value distribution of the current raster rather than using fixed absolute values.
 
 ```r
 sd_params <- tune_sd_thresholds(
