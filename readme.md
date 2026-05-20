@@ -249,24 +249,29 @@ mask <- mask_sd_thresholds(
 `tune_percentile_thresholds()` tunes thresholds based on percentiles of the selected raster layers. This is useful for scene-adaptive thresholds where absolute reflectance or index values vary between images.
 
 ```r
-percentile_params <- tune_percentile_thresholds(
+p_params <- tune_percentile_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
-  probs = c(B02 = 0.95, B03 = 0.95, B04 = 0.95),
+  lower_p = 5,
+  upper_p = 95,
   side = "upper",
   combine = "and",
   display_mode = "rgb_overlay",
-  rgb_bands = c("B04", "B03", "B02"),
-  overlay_col = "#ffff00",
-  alpha = 0.45
+  rgb_bands = c("B02", "B03", "B04"),
+  alpha = 0.45,
+  overlay_col = "#fffb01"
 )
+```
 
+After clicking **Use percentile thresholds**, apply the selected parameters reproducibly:
+
+```r
 mask <- mask_percentile_thresholds(
   x,
-  bands = c("B02", "B03", "B04"),
-  probs = percentile_params$probs,
-  side = percentile_params$side,
-  combine = percentile_params$combine
+  bands = rownames(p_params),
+  params = p_params,
+  side = "upper",
+  combine = "and"
 )
 ```
 
@@ -275,7 +280,7 @@ mask <- mask_percentile_thresholds(
 | Argument                    | Description                                                                  |
 | --------------------------- | ---------------------------------------------------------------------------- |
 | `bands`                     | Raster layers or indices used for percentile thresholding                    |
-| `probs`                     | Percentile probabilities, for example `0.05`, `0.5`, or `0.95`               |
+| `lower_p`, `upper_p`        | Percentile probabilities, for example `0.05`, `0.5`, or `0.95`               |
 | `side`                      | Threshold side, for example `"upper"`, `"lower"`, `"inside"`, or `"outside"` |
 | `combine`                   | Combine multiple layer masks with `"and"` or `"or"`                          |
 | `display_mode`, `rgb_bands` | RGB overlay preview settings                                                 |
