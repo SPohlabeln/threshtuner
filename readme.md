@@ -2,9 +2,9 @@
 
 ## Interactive threshold tuning for raster data
 
-`threshtuner` provides Shiny-based tools for interactively tuning threshold masks for `terra::SpatRaster` objects. It is intended for remote sensing workflows where threshold-based masks are used for ice, snow, water, vegetation, clouds, shadows, brightness anomalies, or index-based filtering.
+`threshtuner` provides Shiny-based tools for interactively tuning threshold masks for `terra::SpatRaster` objects. It is intended for remote sensing workflows where threshold-based masks are used for ice, water, vegetation, clouds, shadows, brightness anomalies, index-based filtering, and more.
 
-Thresholds are often predefined in scripts or adopted from literature, but optimal values vary with sensor, region, season, preprocessing level, illumination, and reflectance scaling. `threshtuner` helps inspect threshold behavior visually before applying masks in a reproducible workflow.
+Thresholds are often predefined in scripts or adopted from literature, but optimal values vary with sensor, region, season, preprocessing level and illumination. `threshtuner` helps inspect threshold behavior visually before applying masks in a reproducible workflow.
 
 Instead of guessing a threshold and repeatedly plotting the result manually, `threshtuner` lets you:
 
@@ -35,7 +35,7 @@ The yellow overlay shows the currently masked pixels. Overlay color and transpar
 <img width="1154" height="617" alt="Brightness threshold tuning app showing an RGB image with a transparent mask overlay" src="https://github.com/user-attachments/assets/59456365-a589-4234-9fa0-f462648b651e" />
 
 
-After clicking **Use thresholds**, the selected settings are returned to R and can be applied reproducibly:
+After clicking **Use thresholds**, the selected settings are returned to R as a atomic named numeric vector and can be applied reproducibly.
 
 ---
 
@@ -55,9 +55,29 @@ library(terra)
 
 ---
 
-## Add simple spectral indices
+## Main workflow
 
-For many thresholding workflows, it is useful to work not only with the original raster bands but also with simple spectral indices. `add_indices()` adds commonly used indices to a `terra::SpatRaster`, so they can be tuned in the same way as any other raster layer.
+All tuning functions follow the same basic logic:
+
+```r
+# Input (Example) 
+x <- c(B02, B03, B04, B08, B11, B12)          -> vector of terra::SpatRaster ojects
+names(x) <- c("B02", "B03", "B04", "B08", "B11", "B12")
+
+# 1. Tune thresholds interactively
+params <- tune_*()
+
+# 2. Apply the selected parameters reproducibly
+mask <- mask_*()
+```
+
+The Shiny apps are used for visual inspection and parameter selection. The corresponding `mask_*()` functions apply the selected settings without reopening the interactive app.
+
+---
+## Optional: Add simple spectral indices
+
+Next to the main thresholding functions, you can also use threshtuner to calculate simple spectral indices. `add_indices()` adds commonly used indices to a `terra::SpatRaster`, so they can be tuned in the same way as any other raster layer.
+
 For computing indices, bands must be named like S2 band naming: "B02", "B03", "B04", "B08", "B11", "B12"
 
 ```r
@@ -71,32 +91,12 @@ The added index layers can then be passed to the tuning functions through the `b
 
 ---
 
-## Main workflow
-
-All tuning functions follow the same basic logic:
-
-```r
-# Input example
-x <- c(B02, B03, B04, B08, B11, B12)
-names(x) <- c("B02", "B03", "B04", "B08", "B11", "B12")
-
-# 1. Tune thresholds interactively
-params <- tune_*()
-
-# 2. Apply the selected parameters reproducibly
-mask <- mask_*()
-```
-
-The Shiny apps are used for visual inspection and parameter selection. The corresponding `mask_*()` functions apply the selected settings without reopening the interactive app.
-
----
-
 ## `tune_band_thresholds()`
 
 `tune_band_thresholds()` tunes one threshold per selected band or index. It is the most direct option for simple rules such as high brightness, low reflectance, or index thresholds.
 
 ```r
-# Version with commonly used arguments
+# Tune one threshold per band/index (all arguments listed)
 band_params <- tune_band_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
@@ -111,7 +111,7 @@ band_params <- tune_band_thresholds(
 ```
 
 ```r
-# Minimal version
+# Minimal version (since the arguments can be tuned in the shiny app, they don't necessarily need to be passed on)
 band_params <- tune_band_thresholds(
   x,
   bands = c("B02", "B03", "B04"),
@@ -150,8 +150,8 @@ plot_rgb_mask_fill(
 | `thresholds`           | One threshold value per selected layer              |
 | `operators`            | Threshold operator: `>`, `>=`, `<`, or `<=`         |
 | `combine`              | Combine multiple layer masks with `"and"` or `"or"` |
-| `display_mode`         | Display mode, for example `"rgb_overlay"`           |
-| `rgb_bands`            | Bands used for the (RGB) background image             |
+| `display_mode`         | Display mode, for example `"rgb_overlay"`/`"mask"`  |
+| `rgb_bands`            | Bands used for the (RGB) background image           |
 | `overlay_col`, `alpha` | Overlay color and transparency for visual preview   |
 
 ---
@@ -162,6 +162,7 @@ plot_rgb_mask_fill(
 `tune_range_thresholds()` tunes lower and upper limits for one or more bands or indices. It is useful when values should be selected inside or outside a defined range.
 
 ```r
+# This example uses the NDVI, to sun this, run add_indices() before
 range_params <- tune_range_thresholds(
   x_idx,
   bands = "NDVI",
