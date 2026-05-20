@@ -40,11 +40,11 @@ compute_sd_thresholds <- function(
   }
 
   out <- data.frame(
-    mean = NA_real_,
-    sd = NA_real_,
-    k = NA_real_,
-    lower = NA_real_,
-    upper = NA_real_,
+    mean = rep(NA_real_, length(bands)),
+    sd = rep(NA_real_, length(bands)),
+    k = rep(NA_real_, length(bands)),
+    lower = rep(NA_real_, length(bands)),
+    upper = rep(NA_real_, length(bands)),
     row.names = bands
   )
 
