@@ -71,7 +71,7 @@ params <- tune_*()
 mask <- mask_*()
 ```
 
-The Shiny apps are used for visual inspection and parameter selection. The corresponding `mask_*()` functions apply the selected settings without reopening the interactive app.
+The Shiny apps are used for visual inspection and parameter selection. The corresponding `mask_*()` functions apply the selected settings without reopening the app.
 
 ---
 ## Optional: Add simple spectral indices
